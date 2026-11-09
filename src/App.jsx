@@ -1,6 +1,8 @@
 import React, { useState, useEffect } from 'react';
-import { transpile } from '@avkashhhh/py2cpp';
-import { Copy, Check, Play, Code2, Sparkles } from 'lucide-react';
+import * as py2cpp from '@avkashhhh/py2cpp';
+import { Copy, Check, Play, Code2, Sparkles, Activity } from 'lucide-react';
+
+const { transpile, transpileWithStats } = py2cpp;
 
 const PRESETS = {
   factorial: `# Recursive Factorial calculation
@@ -50,6 +52,7 @@ export default function App() {
   const [selectedPreset, setSelectedPreset] = useState('factorial');
   const [pythonCode, setPythonCode] = useState(PRESETS.factorial);
   const [cppCode, setCppCode] = useState('');
+  const [stats, setStats] = useState(null);
   const [wrapInMain, setWrapInMain] = useState(true);
   const [includeHeaders, setIncludeHeaders] = useState(true);
   const [useNamespaceStd, setUseNamespaceStd] = useState(false);
@@ -59,16 +62,29 @@ export default function App() {
   const handleTranspile = () => {
     try {
       setError(null);
-      const result = transpile(pythonCode, {
-        wrapInMain,
-        includeHeaders,
-        useNamespaceStd,
-        indent: 4,
-      });
-      setCppCode(result);
+      if (typeof transpileWithStats === 'function') {
+        const result = transpileWithStats(pythonCode, {
+          wrapInMain,
+          includeHeaders,
+          useNamespaceStd,
+          indent: 4,
+        });
+        setCppCode(result.code);
+        setStats(result.stats);
+      } else {
+        const code = transpile(pythonCode, {
+          wrapInMain,
+          includeHeaders,
+          useNamespaceStd,
+          indent: 4,
+        });
+        setCppCode(code);
+        setStats(null);
+      }
     } catch (err) {
       setError(err.message);
       setCppCode(`// Transpilation Error:\n// ${err.message}`);
+      setStats(null);
     }
   };
 
@@ -100,7 +116,7 @@ export default function App() {
         <div className="brand">
           <Code2 size={28} color="#38bdf8" />
           <h1>Py2Cpp Playground</h1>
-          <span className="badge">v1.0.0</span>
+          <span className="badge">v1.1.0</span>
         </div>
         <div>
           <a
@@ -182,6 +198,25 @@ export default function App() {
               </button>
             </div>
             <pre className="code-output">{cppCode}</pre>
+            {stats && (
+              <div style={{
+                display: 'flex',
+                gap: '1rem',
+                padding: '0.6rem 1rem',
+                background: '#161b22',
+                borderTop: '1px solid var(--border)',
+                fontSize: '0.8rem',
+                color: 'var(--text-muted)',
+                alignItems: 'center',
+                flexWrap: 'wrap'
+              }}>
+                <Activity size={14} color="#38bdf8" />
+                <span><strong>{stats.linesTranspiled}</strong> source lines</span>
+                <span><strong>{stats.functionsCount}</strong> function{stats.functionsCount === 1 ? '' : 's'}</span>
+                <span>Headers: <strong style={{ color: '#c9d1d9' }}>{stats.headers.join(' ') || 'none'}</strong></span>
+                {stats.hasMain && <span style={{ color: '#3fb950' }}>● main() entrypoint</span>}
+              </div>
+            )}
           </div>
         </div>
       </main>
